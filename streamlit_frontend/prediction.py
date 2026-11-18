@@ -43,7 +43,12 @@ def _fit_predict(series, future_dates):
     lam = 1.0
     w = np.linalg.solve(X.T @ X + lam * np.eye(X.shape[1]), X.T @ y)
     resid = y - X @ w
-    std = float(resid.std()) if len(y) > 2 else float(y.std())
+    if len(y) > 2:
+        # ignore the most extreme 5% each side so one-off big days don't blow up the range
+        lo, hi = np.percentile(resid, [5, 95])
+        std = float(np.clip(resid, lo, hi).std())
+    else:
+        std = float(y.std())
     pred = np.clip(_features(future_dates, start) @ w, 0, None)
     return pred, std
 
@@ -104,7 +109,7 @@ def prediction():
     conf = "high" if days >= 60 else "medium" if days >= 30 else "low"
 
     m = st.columns(3)
-    m[0].metric(label, money(day_total), f"likely {money(low)} – {money(high)}", delta_color="off")
+    m[0].metric(label, money(day_total), f"likely {money(low)} – {money(high)}".replace("$", "\\$"), delta_color="off")
     m[1].metric("Your daily average (last 30 days)", money(avg30), f"{diff:+.0f}% vs predicted day", delta_color="off")
     m[2].metric("Data used", f"{n_tx} transactions", f"{days} days · confidence: {conf}", delta_color="off")
 
@@ -122,8 +127,8 @@ def prediction():
                     fill="tonexty", fillcolor="rgba(93,202,165,0.18)", name="Likely range", hoverinfo="skip")
     fig.add_scatter(x=fx, y=cpred * rate, mode="lines+markers", name="Predicted",
                     line=dict(color="#5DCAA5", dash="dash", width=3))
-    fig.update_layout(margin=dict(t=10, b=10), legend_title=None, xaxis_title=None, yaxis_title=None,
-                      title=dict(text="Past 14 days and forecast", x=0))
+    fig.update_layout(margin=dict(t=10, b=10), legend_title=None, xaxis_title=None, yaxis_title=None)
+    st.subheader("Past 14 days and forecast")
     st.plotly_chart(fig, width="stretch")
 
     # breakdown by category (share of the last 30 days), only for "All expenses"

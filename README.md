@@ -1,110 +1,118 @@
 # FinTrack — Personal Finance Tracking System
 
-> **Frontend is now Streamlit** — see `streamlit_frontend/README.md`. The old React app is kept in `frontend/` as a fallback.
+Full-stack personal finance app: **Streamlit** frontend, **Laravel** REST API backend, **MySQL** database.
+Track income and expenses, set monthly budgets, save towards goals, view reports, and predict future spending.
 
-Full-stack web app built with **React + Vite** (frontend) and **Laravel** (backend) with **MySQL** database.
+> The original React + Vite frontend is still in `frontend/` as a fallback. The main frontend is `streamlit_frontend/`.
 
 ---
 
 ## Tech Stack
 
-| Layer    | Tool                          |
-|----------|-------------------------------|
-| Frontend | React + Vite + Tailwind CSS   |
-| Backend  | Laravel 10 (php artisan serve)|
-| Database | MySQL                         |
-| Auth     | Laravel Sanctum (token-based) |
-| Charts   | Recharts                      |
+| Layer    | Tool                                     |
+|----------|------------------------------------------|
+| Frontend | Streamlit (Python), Plotly, pandas       |
+| Backend  | Laravel 13 (PHP 8.4+), REST API          |
+| Database | MySQL                                    |
+| Auth     | Laravel Sanctum (token-based)            |
+
+---
+
+## Features
+
+- Register, login, logout, forgot password (demo reset code is written to the Laravel log)
+- **Dashboard** — pick a month to see income, expenses, **remaining money**, budget used, charts and recent transactions
+- **Transactions** — add, search, filter and delete income and expenses
+- **Budget** — monthly limit per category with progress and over-budget warnings
+- **Goals** — target, start date, deadline, progress, needed per month and deposit history
+  - Money for a goal can only come from **this month's remaining money** (income − expenses), up to today
+  - Past and future months are not allowed, and a deposit can't be more than what is available
+- **Reports** — 6 months / this year / last year, charts and CSV export
+- **Prediction** — predicts spending for tomorrow, the next 7 / 30 days or a chosen date, from your own past expenses (linear regression on weekday pattern + trend)
+- **Settings** — profile, password, display currency (USD, KHR, EUR, GBP), clear data, delete account
+- All data is per user
 
 ---
 
 ## Prerequisites
 
-Make sure these are installed on your machine:
-- **PHP 8.1+** — `php -v`
-- **Composer** — `composer -v`
-- **Node.js 18+** — `node -v`
-- **npm** — `npm -v`
-- **MySQL** — running locally (port 3306)
+- **PHP 8.4+** and **Composer** (Laragon includes both). Enable the `zip` extension in PHP.
+- **MySQL** running on port 3306 (Laragon)
+- **Python 3.10+** with `pip`
 
 ---
 
-## Setup Instructions
+## Setup
 
-### Step 1 — Create the database
+### 1. Create the database
 
-Open MySQL (or phpMyAdmin) and run:
+In HeidiSQL (or any MySQL tool) create an empty database, for example `fintrack_streamlit`.
+(Or run `database/setup.sql`, which creates a database named `fintrack`.)
 
-```sql
-CREATE DATABASE fintrack CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Or run the provided SQL file:
-```bash
-mysql -u root -p < database/setup.sql
-```
-
----
-
-### Step 2 — Setup Backend (Laravel)
+### 2. Backend (Laravel)
 
 ```bash
-# Go into the backend folder
 cd backend
-
-# Install PHP dependencies
 composer install
-
-# Copy environment file
-cp .env .env.backup
-
-# Generate app key
+copy .env.example .env        # macOS/Linux: cp .env.example .env
 php artisan key:generate
+```
 
-# Run database migrations (creates all tables)
+Open `backend/.env` and set:
+
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=fintrack_streamlit
+DB_USERNAME=root
+DB_PASSWORD=
+SESSION_DRIVER=file
+```
+
+Then create the tables and start the server:
+
+```bash
 php artisan migrate
-
-# Seed the database with demo data (optional but recommended)
-php artisan db:seed
-
-# Start the Laravel server
+php artisan db:seed       # optional demo user
 php artisan serve
 ```
 
-The backend will run at: **http://localhost:8000**
+The API runs at **http://127.0.0.1:8000/api**. Leave this terminal open.
 
-> If your MySQL password is not empty, open `backend/.env` and set:
-> `DB_PASSWORD=your_password`
+### 3. Frontend (Streamlit)
 
----
-
-### Step 3 — Setup Frontend (React + Vite)
-
-Open a **new terminal window**:
+Open a second terminal:
 
 ```bash
-# Go into the frontend folder
-cd frontend
-
-# Install Node dependencies
-npm install
-
-# Start the Vite dev server
-npm run dev
+cd streamlit_frontend
+pip install -r requirements.txt
+python -m streamlit run app.py
 ```
 
-The frontend will run at: **http://localhost:3000**
+The app opens at **http://localhost:8501**. Register a new account to start.
+
+> Refreshing the browser page logs you out (the login token lives in the Streamlit session).
+
+### Use the deployed backend instead
+
+Skip steps 1–2 and point Streamlit at the hosted API:
+
+```powershell
+$env:FINTRACK_API_URL="https://fintrack-gvxt.onrender.com/api"
+python -m streamlit run app.py
+```
+
+The free Render server sleeps when idle, so the first request can take 30–60 seconds.
 
 ---
 
-## Demo Login
+## Demo login (after `php artisan db:seed`)
 
-After seeding, you can log in with:
-
-| Field    | Value             |
-|----------|-------------------|
-| Email    | khem@email.com    |
-| Password | password123      |
+| Field    | Value           |
+|----------|-----------------|
+| Email    | khem@email.com  |
+| Password | password123     |
 
 ---
 
@@ -112,87 +120,63 @@ After seeding, you can log in with:
 
 ```
 fintrack/
-├── frontend/                  # React + Vite app
-│   └── src/
-│       ├── components/
-│       │   ├── layout/        # Sidebar layout
-│       │   ├── modals/        # All modal popups
-│       │   └── ui/            # Reusable UI components
-│       ├── context/           # Auth, Finance, Toast contexts
-│       ├── pages/             # All pages (Dashboard, Transactions, etc.)
-│       └── utils/             # API instance, category helpers
-│
-├── backend/                   # Laravel app
-│   ├── app/
-│   │   ├── Http/Controllers/  # All API controllers
-│   │   └── Models/            # Eloquent models
-│   ├── database/
-│   │   ├── migrations/        # Table schemas
-│   │   └── seeders/           # Demo data
-│   └── routes/
-│       └── api.php            # All API routes
-│
-└── database/
-    └── setup.sql              # MySQL database creation script
+├── streamlit_frontend/      # Streamlit app (main frontend)
+│   ├── app.py               # login/register + sidebar navigation
+│   ├── api.py               # API client (API_URL set here or via FINTRACK_API_URL)
+│   ├── views.py             # Dashboard, Transactions, Budget, Goals, Reports, Settings
+│   ├── prediction.py        # Spending prediction page
+│   ├── common.py            # categories, currencies, helpers
+│   └── requirements.txt
+├── backend/                 # Laravel API
+│   ├── app/Http/Controllers/
+│   ├── app/Models/
+│   ├── app/Support/GoalFunding.php   # rules for moving money into goals
+│   ├── database/migrations/
+│   └── routes/api.php
+├── frontend/                # Old React + Vite frontend (fallback)
+└── database/setup.sql       # creates the MySQL database
 ```
 
 ---
 
 ## API Endpoints
 
-| Method | Endpoint                  | Description                  |
-|--------|---------------------------|------------------------------|
-| POST   | /api/register             | Register new user            |
-| POST   | /api/login                | Login                        |
-| POST   | /api/logout               | Logout                       |
-| GET    | /api/dashboard/summary    | Dashboard summary cards      |
-| GET    | /api/dashboard/chart      | Chart data (bar + pie)       |
-| GET    | /api/transactions         | List transactions            |
-| POST   | /api/transactions         | Add transaction              |
-| DELETE | /api/transactions/{id}    | Delete transaction           |
-| GET    | /api/budgets              | List budgets for this month  |
-| POST   | /api/budgets              | Set a budget                 |
-| PUT    | /api/budgets/{id}         | Update budget                |
-| DELETE | /api/budgets/{id}         | Delete budget                |
-| GET    | /api/goals                | List all goals               |
-| POST   | /api/goals                | Create a goal                |
-| GET    | /api/goals/{id}           | Goal detail + history        |
-| PUT    | /api/goals/{id}           | Update goal                  |
-| DELETE | /api/goals/{id}           | Delete goal                  |
-| POST   | /api/goals/{id}/add-money | Add money to goal            |
-| GET    | /api/reports/summary      | Financial reports            |
-| PUT    | /api/user/profile         | Update profile               |
-| PUT    | /api/user/password        | Change password              |
-| DELETE | /api/user/data            | Clear all data               |
-| DELETE | /api/user/account         | Delete account               |
-
----
-
-## Features
-
-- ✅ Register & Login with JWT token auth (Laravel Sanctum)
-- ✅ Dashboard with live summary cards and charts
-- ✅ Add income/expense transactions
-- ✅ Link income transactions to saving goals
-- ✅ Monthly budget tracking per category with 80% warning alerts
-- ✅ Goal tracking with saving history
-- ✅ Add money directly to goals
-- ✅ Financial reports with monthly breakdown
-- ✅ Settings: update profile, change password, currency, notifications
-- ✅ All data is per-user and fully secured
+| Method | Endpoint                    | Description                    |
+|--------|-----------------------------|--------------------------------|
+| POST   | /api/register               | Register                       |
+| POST   | /api/login                  | Login                          |
+| POST   | /api/forgot-password        | Send reset code (demo: logged) |
+| POST   | /api/reset-password         | Reset password with code       |
+| POST   | /api/logout                 | Logout                         |
+| GET    | /api/dashboard/summary      | Current month summary          |
+| GET    | /api/dashboard/chart        | Monthly chart data             |
+| GET    | /api/transactions           | List (filters: month, limit)   |
+| POST   | /api/transactions           | Add transaction                |
+| PUT    | /api/transactions/{id}      | Update transaction             |
+| DELETE | /api/transactions/{id}      | Delete transaction             |
+| GET    | /api/budgets                | List budgets for a month       |
+| POST   | /api/budgets                | Set a budget                   |
+| PUT    | /api/budgets/{id}           | Update budget                  |
+| DELETE | /api/budgets/{id}           | Delete budget                  |
+| GET    | /api/goals                  | List goals                     |
+| POST   | /api/goals                  | Create a goal                  |
+| GET    | /api/goals/{id}             | Goal detail + history          |
+| PUT    | /api/goals/{id}             | Update goal                    |
+| DELETE | /api/goals/{id}             | Delete goal                    |
+| POST   | /api/goals/{id}/add-money   | Add money to a goal            |
+| GET    | /api/reports/summary        | Reports (period: 6months, year, lastyear) |
+| PUT    | /api/user/profile           | Update profile                 |
+| PUT    | /api/user/password          | Change password                |
+| DELETE | /api/user/data              | Clear all data                 |
+| DELETE | /api/user/account           | Delete account                 |
 
 ---
 
 ## Troubleshooting
 
-**CORS error?**
-Make sure `frontend` runs on port 3000 and `backend` on port 8000. Check `backend/config/cors.php`.
-
-**DB connection error?**
-Check `backend/.env` — set the correct `DB_USERNAME`, `DB_PASSWORD`, and `DB_DATABASE`.
-
-**`php artisan migrate` fails?**
-Make sure MySQL is running and the `fintrack` database exists.
-
-**`composer install` fails?**
-Make sure PHP 8.1+ is installed: `php -v`
+- **"Cannot reach backend"** in Streamlit — `php artisan serve` isn't running, or `API_URL` points to the wrong place.
+- **`streamlit` is not recognized** — use `python -m streamlit run app.py`.
+- **`composer install` complains about zip** — enable the `zip` extension in PHP (Laragon → PHP → Extensions).
+- **`php artisan migrate` says "Nothing to migrate" but HeidiSQL is empty** — `.env` is still using `DB_CONNECTION=sqlite` or the old database name. Set the `DB_*` lines above, then run `php artisan config:clear`.
+- **Error about a missing `sessions` table** — set `SESSION_DRIVER=file` in `.env`, then `php artisan config:clear`.
+- **Prediction says "not enough data"** — it needs at least 5 expense transactions spread over 14+ days.
